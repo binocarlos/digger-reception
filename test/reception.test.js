@@ -3,29 +3,53 @@ var request = require('request');
 
 describe('reception', function(){
 
-  it('should be a function', function(done) {
+  it('should be a function', function() {
 
-    var warehouse = Reception();
-    warehouse.should.be.a('function');
-    done();
+    Reception.should.be.a('function');
 
   })
 
   it('should serve HTTP', function(done) {
-    var server = Reception();
+    var app = Reception();
 
-    server.use(function(req, res){
+    app.use(function(req, res){
       res.send('hello world');
     })
 
-    server.listen(8967, function(){
+    var server = app.listen(8967, function(){
       request('http://127.0.0.1:8967/', function (error, response, body) {
         if (!error && response.statusCode == 200) {
           body.should.equal('hello world');
+          server.close();
           done();
         }
         else{
-          throw new Error(reponse.statusCode + ' - ' + error);
+          throw new Error(response.statusCode + ' - ' + error);
+        }
+      })
+    })
+
+  })
+
+  it('should serve containers', function(done) {
+    var app = Reception();
+
+    app.use(function(req, res){
+      res.containers([{
+        name:'test',
+        price:10
+      }])
+    })
+
+    var server = app.listen(8967, function(){
+      request('http://127.0.0.1:8967/', function (error, response, body) {
+        if (!error && response.statusCode == 200) {
+          response.headers['content-type'].should.equal('application/json');
+          server.close();
+          done();
+        }
+        else{
+          throw new Error(response.statusCode + ' - ' + error);
         }
       })
     })

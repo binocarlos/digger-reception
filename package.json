@@ -21,6 +21,9 @@
     "request": "~2.25.0"
   },
   "dependencies": {
-    "express": "~3.3.4"
+    "express": "~3.3.4",
+    "digger-network": "0.0.2",
+    "digger-warehouse": "0.0.2",
+    "digger-utils": "~1.0.3"
   }
 }

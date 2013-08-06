@@ -12,24 +12,74 @@
 
  */
 
-
-// ORIGINAL CONNECT LICENSE
-/*!
- * Connect - HTTPServer
- * Copyright(c) 2010 Sencha Inc.
- * Copyright(c) 2011 TJ Holowaychuk
- * MIT Licensed
- */
-
 /**
  * Module dependencies.
  */
 
 
 var express = require('express');
+var Warehouse = require('digger-warehouse');
+var Network = require('digger-network');
+var url = require('url');
+var utils = require('digger-utils');
 
 module.exports = function(){
   var app = express();
+  var warehouse = Warehouse();
 
-  return app;
+  app.use(express.bodyParser());
+  app.use(express.query());
+
+  /*
+  
+    the main HTTP to digger bridge
+    
+  */
+  app.use(function(req, res, next){
+
+    var pathname = url.parse(req.url).pathname;
+    var digger_req = Network.request({
+      method:req.method.toLowerCase(),
+      url:pathname,
+      pathname:pathname,
+      headers:req.headers,
+      body:req.body
+    })
+
+    var digger_res = Network.response(function(){
+      res.statusCode = digger_res.statusCode;
+      res.headers = digger_req.headers;
+      res.send(digger_res.body);
+    })
+
+    warehouse(digger_req, digger_res, function(){
+      digger_res.send404();
+    })
+  })
+
+  /*
+  
+  	the main contract resolver
+  	
+  */
+  warehouse.post('/reception', function(req, res, next){
+    
+  })
+
+  /*
+  
+    proxy for the express listener
+
+    this is only called if we are running the HTTP server and not mounting onto a sub path of another express app
+    
+  */
+  warehouse.listen = function(){
+    return app.listen.apply(app, utils.toArray(arguments));
+  }
+
+  warehouse.close = function(){
+    return app.close();
+  }
+
+  return warehouse;
 }
