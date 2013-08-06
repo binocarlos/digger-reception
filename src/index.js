@@ -57,6 +57,33 @@ module.exports = function(){
     })
   })
 
+  var frontdoor = Warehouse();
+
+  /*
+  
+    logging
+    
+  */
+  frontdoor.use(function(req, res, next){
+    var parts = [
+      req.method.toUpperCase(),
+      req.pathname
+    ]
+    console.log(parts.join("\t"));
+    next();
+  })
+
+  frontdoor.get('/ping', function(req, res, next){
+    res.send('pong');
+  })
+
+  /*
+  
+    the are you alive handler
+    
+  */
+  warehouse.use(frontdoor);
+
   /*
   
   	the main contract resolver
