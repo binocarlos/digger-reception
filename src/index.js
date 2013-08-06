@@ -18,95 +18,88 @@
 
 
 var express = require('express');
-var Warehouse = require('digger-warehouse');
-var Network = require('digger-network');
 var url = require('url');
 var utils = require('digger-utils');
+var ContractResolver = require('./contractresolver');
+var Router = require('./router');
 
-module.exports = function(){
+module.exports = function(routes){
   var app = express();
-  var warehouse = Warehouse();
-
+  var loopback_port = 80;
+  
   app.use(express.bodyParser());
   app.use(express.query());
 
+  var resolver = new ContractResolver();
+  var router = Router(routes);
+
   /*
   
-    the main HTTP to digger bridge
+    pipe requests into the router to handle
     
   */
-  app.use(function(req, res, next){
-
-    var pathname = url.parse(req.url).pathname;
-    var digger_req = Network.request({
-      method:req.method.toLowerCase(),
-      url:pathname,
-      pathname:pathname,
-      headers:req.headers,
-      body:req.body
-    })
-
-    var digger_res = Network.response(function(){
-      res.statusCode = digger_res.statusCode;
-      res.headers = digger_req.headers;
-      res.send(digger_res.body);
-    })
-
-    warehouse(digger_req, digger_res, function(){
-      digger_res.send404();
-    })
+  resolver.on('request', function(req, reply){
+    var parts = [
+      new Date().getTime(),
+      'request',
+      req.method.toLowerCase(),
+      req.url
+    ]
+    console.log(parts.join("\t"));
+    router(req, reply);
   })
-
-  var frontdoor = Warehouse();
 
   /*
   
     logging
     
   */
-  frontdoor.use(function(req, res, next){
+  app.use(function(req, res, next){
     var parts = [
-      req.method.toUpperCase(),
-      req.pathname
+      new Date().getTime(),
+      'packet',
+      req.method.toLowerCase(),
+      req.url
     ]
     console.log(parts.join("\t"));
     next();
   })
 
-  frontdoor.get('/ping', function(req, res, next){
+  app.use(app.router);
+
+  /*
+  
+    Ping
+    
+  */
+  app.get('/ping', function(req, res, next){
     res.send('pong');
   })
 
   /*
   
-    the are you alive handler
-    
-  */
-  warehouse.use(frontdoor);
-
-  /*
-  
-  	the main contract resolver
+  	Reception
   	
   */
-  warehouse.post('/reception', function(req, res, next){
-    
+  app.post('/reception', function(req, res, next){
+    var parts = [
+      new Date().getTime(),
+      'contract',
+      req.headers['x-contract-type'],
+      (req.body || []).length
+    ]
+    console.log(parts.join("\t"));
+    resolver.handle(req, function(contract_result){
+      console.log('-------------------------------------------');
+      console.log('after contact');
+    })
   })
 
-  /*
-  
-    proxy for the express listener
-
-    this is only called if we are running the HTTP server and not mounting onto a sub path of another express app
-    
-  */
-  warehouse.listen = function(){
-    return app.listen.apply(app, utils.toArray(arguments));
+  var orig_listen = app.listen;
+  app.listen = function(port){
+    loopback_port = port || loopback_port;
+    return orig_listen.apply(app, utils.toArray(arguments));
   }
 
-  warehouse.close = function(){
-    return app.close();
-  }
-
-  return warehouse;
+  return app;
 }

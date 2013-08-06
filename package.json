@@ -24,6 +24,7 @@
     "express": "~3.3.4",
     "digger-network": "0.0.2",
     "digger-warehouse": "0.0.2",
-    "digger-utils": "~1.0.3"
+    "digger-utils": "~1.0.3",
+    "async": "~0.2.9"
   }
 }
