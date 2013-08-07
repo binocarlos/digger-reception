@@ -106,11 +106,6 @@ Resolver.prototype.merge = function(req, reply){
           nextmerge();  
         }
       }
-      console.log('-------------------------------------------');
-      console.log('-------------------------------------------');
-      console.log('HANLER RES');
-      console.dir(merge_res);
-
     })
 
     /*
@@ -129,8 +124,9 @@ Resolver.prototype.merge = function(req, reply){
       reply(error);
       return;
     }
-    console.log('-------------------------------------------');
-    console.log('after mrege');
+    else{
+      reply(null, results);
+    }
 /*
     if(branches.length>0){
 
@@ -168,12 +164,30 @@ Resolver.prototype.pipe = function(req, reply){
   //debug('pipe contract');
   async.forEachSeries(req.body || [], function(raw, nextpipe){
 
-    self.handle(raw, function(merge_res){
-      console.log('-------------------------------------------');
-      console.log('-------------------------------------------');
-      console.log('HANLER RES');
-      console.dir(merge_res);
-      nextpipe();
+    raw.body = lastresults || raw.body;
+
+    var pipe_results = [];
+
+    self.handle(raw, function(error, pipe_res, more){
+
+      if(error){
+        nextpipe(error);
+        return;
+      }
+      else{
+        pipe_results = pipe_results.concat(pipe_res.body || []);
+        if(!more){
+          if(pipe_results.length>0){
+            lastresults = pipe_results;
+            nextpipe();
+          }
+          else{
+            reply(null, []);
+          }
+          
+        }
+      }
+
     })
     /*
     var contract_req = Request(raw);
@@ -192,8 +206,13 @@ Resolver.prototype.pipe = function(req, reply){
     //debug('pipe contract - part: %s %s', contract_req.method, contract_req.url);
     //supplychain(contract_req, contract_res, next);
   }, function(error){
-    console.log('-------------------------------------------');
-    console.log('after pipe');
+    if(error){
+      reply(error);
+      return;
+    }
+    else{
+      reply(null, lastresults);
+    }    
   })
 }
 

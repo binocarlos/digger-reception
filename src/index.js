@@ -35,6 +35,31 @@ module.exports = function(routes){
 
   /*
   
+    mount a backend warehouse handler
+    
+  */
+  app.digger = function(route, fn){
+    if(arguments.length<=1){
+      fn = route;
+      route = '/';
+    }
+
+    router.add(route, fn);
+    
+    return app;
+  }
+
+  /*
+  
+    a function is passed here that can remap the digger request
+    
+  */
+  app.digger_router = function(fn){
+    router.process_route = fn;
+  }
+
+  /*
+  
     pipe requests into the router to handle
     
   */
@@ -89,9 +114,21 @@ module.exports = function(routes){
       (req.body || []).length
     ]
     console.log(parts.join("\t"));
-    resolver.handle(req, function(contract_result){
-      console.log('-------------------------------------------');
-      console.log('after contact');
+    resolver.handle(req, function(error, result){
+
+      if(error){
+        var statusCode = 500;
+        error = error.replace(/^(\d+):/, function(match, code){
+          statusCode = code;
+          return '';
+        })
+        res.statusCode = statusCode;
+        res.send(error);
+      }
+      else{
+        res.headers = result.headers;
+        res.json(result.body || []);
+      }
     })
   })
 

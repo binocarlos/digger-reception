@@ -18,33 +18,42 @@
 
 module.exports = function(routes){
 
-  return function(req, reply){
+  routes = routes || {};
 
-    console.log('-------------------------------------------');
-    console.log('routing: ' + req.url);
-
-    var url = req.url;
+  function match_route(url){
     if(url.charAt(0)==='/'){
       url = url.substr(1);
     }
     var parts = url.split('/');
-
-    console.log('-------------------------------------------');
-    console.dir(parts);
     var usepath = [parts.shift()];
     while(parts.length>0 && !routes['/' + usepath.join('/')]){
       usepath.push(parts.shift());
     }
-    var route = routes['/' + usepath.join('/')];
-    if(!route){
-      console.log('-------------------------------------------');
-      console.log('no route');
-      reply('no route found');
-      return;
+    return routes['/' + usepath.join('/')];
+  }
+
+  function router(req, reply){
+
+    function runroute(){
+      var route = match_route(req.url);
+      if(!route){
+        reply(404 + ':no route found for: ' + req.url);
+        return;
+      }
+      route(req, reply);
+    }
+    if(this.process_route){
+      this.process_route(req, runroute);
+    }
+    else{
+      runroute();
     }
     
-
-    console.log('-------------------------------------------');
-    console.dir(route);
   }
+
+  router.add = function(route, fn){
+    routes[route] = fn;
+  }
+
+  return router;
 }
