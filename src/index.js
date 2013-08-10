@@ -25,7 +25,6 @@ var Router = require('./router');
 
 module.exports = function(routes){
   var app = express();
-  var loopback_port = 80;
   
   app.use(express.bodyParser());
   app.use(express.query());
@@ -33,6 +32,27 @@ module.exports = function(routes){
   var resolver = new ContractResolver();
   var router = Router(routes);
 
+  /*
+  
+    get a function that will write the result to a http res
+    
+  */
+  function http_response_writer(res){
+    return function(error, result){
+      if(error){
+        var statusCode = 500;
+        error = error.replace(/^(\d+):/, function(match, code){
+          statusCode = code;
+          return '';
+        })
+        res.statusCode = statusCode;
+        res.send(error);
+      }
+      else{
+        res.json(result || []);
+      }
+    }
+  }
   /*
   
     mount a backend warehouse handler
@@ -49,14 +69,6 @@ module.exports = function(routes){
     return app;
   }
 
-  /*
-  
-    a function is passed here that can remap the digger request
-    
-  */
-  app.digger_router = function(fn){
-    router.process_route = fn;
-  }
 
   /*
   
@@ -64,13 +76,6 @@ module.exports = function(routes){
     
   */
   resolver.on('request', function(req, reply){
-    var parts = [
-      new Date().getTime(),
-      'request',
-      req.method.toLowerCase(),
-      req.url
-    ]
-    console.log(parts.join("\t"));
     router(req, reply);
   })
 
@@ -114,27 +119,33 @@ module.exports = function(routes){
       (req.body || []).length
     ]
     console.log(parts.join("\t"));
-    resolver.handle(req, function(error, result){
+    resolver.handle(req, http_response_writer(res));
+  })
 
-      if(error){
-        var statusCode = 500;
-        error = error.replace(/^(\d+):/, function(match, code){
-          statusCode = code;
-          return '';
-        })
-        res.statusCode = statusCode;
-        res.send(error);
+  /*
+  
+    catch all routes
+    
+  */
+  app.use(function(req, res, next){
+
+    var headers = req.headers;
+    for(var prop in headers){
+      if(prop.indexOf('x-json-')==0){
+        headers[prop] = JSON.parse(headers[prop]);
       }
-      else{
-        res.headers = result.headers;
-        res.json(result.body || []);
-      }
-    })
+    }
+    router({
+      url:req.url,
+      method:req.method.toLowerCase(),
+      headers:headers,
+      body:req.body
+    }, http_response_writer(res));
+
   })
 
   var orig_listen = app.listen;
   app.listen = function(port){
-    loopback_port = port || loopback_port;
     return orig_listen.apply(app, utils.toArray(arguments));
   }
 

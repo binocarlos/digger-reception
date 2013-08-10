@@ -20,6 +20,7 @@ var async = require('async');
 
 var EventEmitter = require('events').EventEmitter;
 var util = require('util');
+var utils = require('digger-utils');
 
 //var debug = require('debug')('contractresolver');
 
@@ -92,12 +93,19 @@ Resolver.prototype.merge = function(req, reply){
     // INJECT!
     // req.inject(contract_req);
 
-    self.handle(raw, function(error, merge_res, more){
+    self.handle(raw, function(error, results){
+
       if(error){
         nextmerge(error);
         return;
       }
       else{
+        if(!results){
+          results = [];
+        }
+        else if(!utils.isArray(results)){
+          results = [results];
+        }
         //results.push(merge_res);
         // BRACHING
         // branches = branches.concat(contract_res.getHeader('x-json-branches') || []);
@@ -161,51 +169,38 @@ Resolver.prototype.merge = function(req, reply){
 Resolver.prototype.pipe = function(req, reply){
   var self = this;
   var lastresults = null;
-  //debug('pipe contract');
+
   async.forEachSeries(req.body || [], function(raw, nextpipe){
 
     raw.body = lastresults || raw.body;
 
     var pipe_results = [];
 
-    self.handle(raw, function(error, pipe_res, more){
+    self.handle(raw, function(error, results){
 
       if(error){
         nextpipe(error);
         return;
       }
       else{
-        pipe_results = pipe_results.concat(pipe_res.body || []);
-        if(!more){
-          if(pipe_results.length>0){
-            lastresults = pipe_results;
-            nextpipe();
-          }
-          else{
-            reply(null, []);
-          }
-          
+        if(!results){
+          results = [];
         }
+        else if(!utils.isArray(results)){
+          results = [results];
+        }
+        if(results.length<=0){
+          reply(null, []);
+          return;
+        }
+        lastresults = results;
+        nextpipe();
       }
 
     })
-    /*
-    var contract_req = Request(raw);
-    req.inject(contract_req);
-    contract_req.body = lastresults || contract_req.body;
-    var contract_res = Response(function(){
-      if(contract_res.hasError()){
-        res.fill(contract_res);
-      }
-      else{
-        lastresults = contract_res.body;
-        nextpipe();
-      }
-    })
-    */
-    //debug('pipe contract - part: %s %s', contract_req.method, contract_req.url);
-    //supplychain(contract_req, contract_res, next);
+
   }, function(error){
+
     if(error){
       reply(error);
       return;

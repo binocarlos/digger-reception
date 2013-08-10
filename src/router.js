@@ -29,19 +29,31 @@ module.exports = function(routes){
     while(parts.length>0 && !routes['/' + usepath.join('/')]){
       usepath.push(parts.shift());
     }
-    return routes['/' + usepath.join('/')];
+    var finalroute = '/' + usepath.join('/');
+    var fn = routes[finalroute];
+    if(!fn){
+      return null;
+    }
+    else{
+      return {
+        route:finalroute,
+        fn:fn
+      }  
+    }
   }
 
   function router(req, reply){
-
     function runroute(){
       var route = match_route(req.url);
       if(!route){
         reply(404 + ':no route found for: ' + req.url);
         return;
       }
-      route(req, reply);
+      req.headers['x-supplier-route'] = route.route;
+      req.url = req.url.substr(route.route.length);
+      route.fn(req, reply);
     }
+
     if(this.process_route){
       this.process_route(req, runroute);
     }
