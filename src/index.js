@@ -23,14 +23,22 @@ var utils = require('digger-utils');
 var ContractResolver = require('./contractresolver');
 var Router = require('./router');
 
-module.exports = function(routes){
+module.exports = function(options){
+  options = options || {};
   var app = express();
   
   app.use(express.bodyParser());
   app.use(express.query());
 
   var resolver = new ContractResolver();
-  var router = Router(routes);
+  var router = Router(options.routes);
+
+  function logger(parts){
+    if(options.log===false){
+      return;
+    }
+    console.log(parts.join("\t"));
+  }
 
   /*
   
@@ -53,6 +61,7 @@ module.exports = function(routes){
       }
     }
   }
+  
   /*
   
     mount a backend warehouse handler
@@ -81,21 +90,19 @@ module.exports = function(routes){
 
   /*
   
-    logging
+    log requests going to backend warehouses via the router
     
   */
-  app.use(function(req, res, next){
+  router.on('request', function(req){
     var parts = [
       new Date().getTime(),
       'packet',
       req.method.toLowerCase(),
       req.url
     ]
-    console.log(parts.join("\t"));
-    next();
+    logger(parts);
   })
 
-  app.use(app.router);
 
   /*
   
@@ -118,7 +125,7 @@ module.exports = function(routes){
       req.headers['x-contract-type'],
       (req.body || []).length
     ]
-    console.log(parts.join("\t"));
+    logger(parts);
     resolver.handle(req, http_response_writer(res));
   })
 

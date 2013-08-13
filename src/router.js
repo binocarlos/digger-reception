@@ -16,7 +16,9 @@
  * Module dependencies.
  */
 
-module.exports = function(routes){
+var EventEmitter = require('events').EventEmitter;
+
+module.exports = function(routes, processor){
 
   routes = routes || {};
 
@@ -50,12 +52,13 @@ module.exports = function(routes){
         return;
       }
       req.headers['x-supplier-route'] = route.route;
+      router.emit('request', req);
       req.url = req.url.substr(route.route.length);
       route.fn(req, reply);
     }
 
-    if(this.process_route){
-      this.process_route(req, runroute);
+    if(processor){
+      processor(req, runroute);
     }
     else{
       runroute();
@@ -65,6 +68,10 @@ module.exports = function(routes){
 
   router.add = function(route, fn){
     routes[route] = fn;
+  }
+
+  for(var prop in EventEmitter.prototype){
+    router[prop] = EventEmitter.prototype[prop];
   }
 
   return router;

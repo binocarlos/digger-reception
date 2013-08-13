@@ -85,7 +85,7 @@ Resolver.prototype.merge = function(req, reply){
   var self = this;
 
   var branches = [];
-  var results = [];
+  var allresults = [];
   
   //debug('merge contract');
   async.forEach(req.body || [], function(raw, nextmerge){
@@ -109,10 +109,8 @@ Resolver.prototype.merge = function(req, reply){
         //results.push(merge_res);
         // BRACHING
         // branches = branches.concat(contract_res.getHeader('x-json-branches') || []);
-        results = results.concat(merge_res.body || []);
-        if(!more){
-          nextmerge();  
-        }
+        allresults = allresults.concat(results || []);
+        nextmerge();
       }
     })
 
@@ -128,12 +126,13 @@ Resolver.prototype.merge = function(req, reply){
     //supplychain(contract_req, contract_res);
 
   }, function(error){
+
     if(error){
       reply(error);
       return;
     }
     else{
-      reply(null, results);
+      reply(null, allresults);
     }
 /*
     if(branches.length>0){
