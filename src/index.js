@@ -22,6 +22,7 @@ var url = require('url');
 var utils = require('digger-utils');
 var ContractResolver = require('./contractresolver');
 var Router = require('./router');
+var Injector = require('./injector');
 
 module.exports = function(options){
   options = options || {};
@@ -60,6 +61,16 @@ module.exports = function(options){
         res.json(result || []);
       }
     }
+  }
+
+  function reception_logger(req){
+    var parts = [
+      new Date().getTime(),
+      'contract',
+      req.headers['x-contract-type'],
+      (req.body || []).length
+    ]
+    logger(parts);
   }
   
   /*
@@ -119,16 +130,27 @@ module.exports = function(options){
   	
   */
   app.post('/reception', function(req, res, next){
-    var parts = [
-      new Date().getTime(),
-      'contract',
-      req.headers['x-contract-type'],
-      (req.body || []).length
-    ]
-    logger(parts);
+    reception_logger(req);
     resolver.handle(req, http_response_writer(res));
   })
 
+  /*
+  
+    code injection
+    
+  */
+  app.get('/digger.js', Injector());
+  app.get('/digger.min.js', Injector({
+    minified:true
+  }));
+  app.get('/:driver/digger.js', Injector({
+    pathdriver:true
+  }));
+  app.get('/:driver/digger.min.js', Injector({
+    pathdriver:true,
+    minified:true
+  }));
+  
   /*
   
     catch all routes
@@ -142,6 +164,7 @@ module.exports = function(options){
         headers[prop] = JSON.parse(headers[prop]);
       }
     }
+
     router({
       url:req.url,
       method:req.method.toLowerCase(),
@@ -154,6 +177,23 @@ module.exports = function(options){
   var orig_listen = app.listen;
   app.listen = function(port){
     return orig_listen.apply(app, utils.toArray(arguments));
+  }
+
+  /*
+  
+    a connector that runs raw packets rather than spawn a HTTP loopback
+    
+  */
+  app.connector = function(){
+    return function(req, reply){
+      if(req.method.toLowerCase()==='post' && req.url==='/reception'){
+        reception_logger(req);
+        resolver.handle(req, reply);
+      }
+      else{
+        router(req, reply);
+      }
+    }
   }
 
   return app;

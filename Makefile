@@ -13,10 +13,10 @@ test:
 		$(TESTS)
 
 browserify:
-	browserify src/index.js > build/container.js
+	browserify src/clients/core.js > src/clients/build/core.js
 
 uglify: browserify
-	uglifyjs build/container.js > build/container.min.js
+	uglifyjs src/clients/build/core.js > src/clients/build/core.min.js
 
 build: uglify
 
