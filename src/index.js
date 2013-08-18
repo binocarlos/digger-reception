@@ -32,7 +32,7 @@ module.exports = function(options){
   app.use(express.query());
 
   var resolver = new ContractResolver();
-  var router = Router(options.routes);
+  var router = Router(options.routes, options.router);
 
   function logger(parts){
     if(options.log===false){
@@ -173,11 +173,6 @@ module.exports = function(options){
     }, http_response_writer(res));
 
   })
-
-  var orig_listen = app.listen;
-  app.listen = function(port){
-    return orig_listen.apply(app, utils.toArray(arguments));
-  }
 
   /*
   

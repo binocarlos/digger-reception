@@ -58,7 +58,7 @@ module.exports = function(routes, processor){
     }
 
     if(processor){
-      processor(req, runroute);
+      processor(req, reply, runroute);
     }
     else{
       runroute();

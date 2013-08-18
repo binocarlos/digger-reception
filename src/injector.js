@@ -29,7 +29,7 @@ module.exports = function(options){
       baseurl = baseurl.replace(/\/\w+$/, '');
     }
 
-    baseurl = '//' + host + baseurl;
+    var full_baseurl = '//' + host + baseurl;
 
   	var driver = req.params.driver || req.query.driver || 'core';
 
@@ -43,8 +43,20 @@ module.exports = function(options){
         res.send(error);
       }
       else{
-        code += [
 
+        /*
+        
+          this object is used to construct the window $digger object
+          configured to point back to here
+          
+        */
+        var digger_config = {
+          host:host,
+          baseurl:baseurl
+        }
+
+        code += [
+          "window.$digger = require('./src/clients/core.js')(" + JSON.stringify(digger_config) + ");"
         ].join("\n");
         res.send(code);
       }
