@@ -1,6 +1,6 @@
 {
   "name": "digger-reception",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "The main query router for a digger.io network",
   "main": "src/index.js",
   "scripts": {
@@ -24,7 +24,7 @@
     "express": "~3.3.4",
     "digger-utils": "~1.0.3",
     "async": "~0.2.9",
-    "digger-client":"~0.0.4",
+    "digger-client": "~0.0.4",
     "socket.io-client": "~0.9.16"
   }
 }
