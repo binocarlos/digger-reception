@@ -31,11 +31,11 @@ module.exports = function(options){
 
     var full_baseurl = '//' + host + baseurl;
 
-  	var driver = req.params.driver || req.query.driver || 'core';
+  	var driver = req.params.driver || req.query.driver || 'sockets';
 
   	res.setHeader('content-type', 'application/javascript');
 
-    var client_path = __dirname + '/clients/build/' + driver + (options.minified ? '.min' : '') + '.js';
+    var client_path = __dirname + '/clients/' + driver + (options.minified ? '.min' : '') + '.js';
 
     fs.readFile(client_path, 'utf8', function(error, code){
       if(error){
@@ -56,7 +56,15 @@ module.exports = function(options){
         }
 
         code += [
-          "window.$digger = require('./src/clients/core.js')(" + JSON.stringify(digger_config) + ");"
+          "(function(window){",
+          " var useconfig = " + JSON.stringify(digger_config, null, 4) + ";",
+          " if(window.$diggerconfig){",
+          "   for(var prop in window.$diggerconfig){",
+          "     useconfig[prop] = window.$diggerconfig[prop];",
+          "   }",
+          " }",
+          " window.$digger = require('digger-" + driver + "')(useconfig);",
+          "})(window)"
         ].join("\n");
         res.send(code);
       }

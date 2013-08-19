@@ -13,10 +13,10 @@ test:
 		$(TESTS)
 
 browserify:
-	browserify -r ./src/clients/core.js > src/clients/build/core.js
+	browserify -r digger-sockets > src/clients/sockets.js
 
 uglify: browserify
-	uglifyjs src/clients/build/core.js > src/clients/build/core.min.js
+	uglifyjs src/clients/sockets.js > src/clients/sockets.min.js
 
 build: uglify
 

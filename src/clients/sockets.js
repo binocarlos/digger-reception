@@ -2345,8 +2345,8 @@ module.exports = function extend() {
 	return target;
 };
 
-},{}],"./src/clients/core.js":[function(require,module,exports){
-module.exports=require('LbnAjw');
+},{}],"digger-sockets":[function(require,module,exports){
+module.exports=require('4Hq4cp');
 },{}],12:[function(require,module,exports){
 var hat = module.exports = function (bits, base) {
     if (!base) base = 16;
@@ -6420,7 +6420,7 @@ if (typeof define === "function" && define.amd) {
   define([], function () { return io; });
 }
 })();
-},{}],"LbnAjw":[function(require,module,exports){
+},{}],"4Hq4cp":[function(require,module,exports){
 /*
 
 	(The MIT License)
@@ -6471,11 +6471,11 @@ module.exports = function(config){
 		})
 	}
 
-	var socket_handler = disconnected_handler;
+	var run_socket = disconnected_handler;
 
   socket.on('connect', function(){
   	
-  	socket_handler = function(req, reply){
+  	run_socket = function(req, reply){
   		
   		var http_req = {
   			method:req.method,
@@ -6499,14 +6499,14 @@ module.exports = function(config){
   	}
 
   	request_buffer.forEach(function(buffered_request){
-  		socket_handler(buffered_request.req, buffered_request.reply);
+  		run_socket(buffered_request.req, buffered_request.reply);
   	})
 
   	request_buffer = [];
   	
     //socket.on('event', function(data){});
     socket.on('disconnect', function(){
-    	socket_handler = disconnected_handler;
+    	run_socket = disconnected_handler;
     });
   });
 
@@ -6526,7 +6526,8 @@ module.exports = function(config){
 		
 	*/
 	function run_angular(req, reply){
-
+		console.log('-------------------------------------------');
+		console.log('running ANGULAR');
 	}
 
 	/*
@@ -6543,18 +6544,25 @@ module.exports = function(config){
 		
 	*/
 	function handle(req, reply){
-		if(window.angular){
+		if(config.force_sockets){
+			run_socket(req, reply);
+		}
+		else if(window.angular){
 			run_angular(req, reply);
 		}
 		else if(window.$){
 			run_jquery(req, reply);
 		}
 		else{
-			socket_handler(req, reply);
+			run_socket(req, reply);
 		}
 	}
 
-	return Client(handle);
+	var $digger = Client(handle);
+	$digger.config = config;
+	$digger.user = config.user;
+	
+	return $digger;
 }
 },{"digger-client":14,"socket.io-client":15}],17:[function(require,module,exports){
 var process=require("__browserify_process");if (!process.EventEmitter) process.EventEmitter = function () {};

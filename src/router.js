@@ -18,9 +18,28 @@
 
 var EventEmitter = require('events').EventEmitter;
 
+/*
+
+  processor contains:
+
+    * router - the function that maps the request before the suppliers are matched
+
+    * security - the function that maps the request after the suppliers are matched
+  
+*/
 module.exports = function(routes, processor){
 
   routes = routes || {};
+
+  if(!processor){
+    processor = {};
+  }
+
+  if(typeof(processor)==='function'){
+    processor = {
+      router:processor
+    }
+  }
 
   function match_route(url){
     if(url.charAt(0)==='/'){
@@ -44,24 +63,40 @@ module.exports = function(routes, processor){
     }
   }
 
+  /*
+  
+    HERE WE PLUG IN THE STREAMS
+    
+  */
   function router(req, reply){
+
+    function secureroute(){
+      if(processor.security){
+        processor.security(req, reply, runroute);
+      }
+      else{
+        runroute();
+      }
+    }
+
     function runroute(){
       var route = match_route(req.url);
       if(!route){
         reply(404 + ':no route found for: ' + req.url);
         return;
       }
+
       req.headers['x-supplier-route'] = route.route;
       router.emit('request', req);
       req.url = req.url.substr(route.route.length);
       route.fn(req, reply);
     }
 
-    if(processor){
-      processor(req, reply, runroute);
+    if(processor.router){
+      processor.router(req, reply, secureroute);
     }
     else{
-      runroute();
+      secureroute();
     }
     
   }

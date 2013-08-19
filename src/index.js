@@ -89,6 +89,9 @@ module.exports = function(options){
     return app;
   }
 
+  app.digger.use = function(fn){
+
+  }
 
   /*
   
@@ -189,6 +192,15 @@ module.exports = function(options){
         router(req, reply);
       }
     }
+  }
+
+  /*
+  
+    assing a
+    
+  */
+  app.router = function(fn){
+
   }
 
   return app;

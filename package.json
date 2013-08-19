@@ -25,6 +25,7 @@
     "digger-utils": "~1.0.3",
     "async": "~0.2.9",
     "digger-client": "~0.0.4",
-    "socket.io-client": "~0.9.16"
+    "socket.io-client": "~0.9.16",
+    "digger-sockets": "~0.0.1"
   }
 }
