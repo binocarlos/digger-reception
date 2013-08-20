@@ -49,9 +49,6 @@ module.exports = function(options){
   function http_response_writer(res){
     return function(error, result){
 
-      console.log('-------------------------------------------');
-      console.dir(error);
-      console.dir(result);
       if(error){
         var statusCode = 500;
         error = error.replace(/^(\d+):/, function(match, code){
@@ -77,6 +74,26 @@ module.exports = function(options){
     logger(parts);
   }
   
+  function action_logger(type, req){
+
+    var data = '';
+
+    if(type==='select'){
+      data = req.selector.string;
+    }
+    else{
+      data = (req.body || []).length;
+    }
+
+    var parts = [
+      new Date().getTime(),
+      'action:' + type,
+      req.url,
+      data
+    ]
+    logger(parts);
+  }
+
   /*
   
     mount a backend warehouse handler
@@ -88,7 +105,15 @@ module.exports = function(options){
       route = '/';
     }
 
-    router.add(route, fn);
+    if(typeof(fn.on)==='function'){
+      fn.on('action', action_logger);
+    }
+
+    router.add(route, function(req, reply){
+      process.nextTick(function(){
+        fn(req, reply);
+      })
+    });
     
     return app;
   }
@@ -97,6 +122,7 @@ module.exports = function(options){
 
   }
 
+
   /*
   
     pipe requests into the router to handle
@@ -104,6 +130,22 @@ module.exports = function(options){
   */
   resolver.on('request', function(req, reply){
     router(req, reply);
+  })
+
+  /*
+  
+    the router has denied access to a backend resource
+    
+  */
+  router.on('security', function(req, error){
+    var parts = [
+      new Date().getTime(),
+      'security',
+      req.method.toLowerCase(),
+      req.url,
+      error
+    ]
+    logger(parts);
   })
 
   /*
@@ -188,13 +230,16 @@ module.exports = function(options){
   */
   app.connector = function(){
     return function(req, reply){
-      if(req.method.toLowerCase()==='post' && req.url==='/reception'){
-        reception_logger(req);
-        resolver.handle(req, reply);
-      }
-      else{
-        router(req, reply);
-      }
+      process.nextTick(function(){
+        if(req.method.toLowerCase()==='post' && req.url==='/reception'){
+          reception_logger(req);
+          resolver.handle(req, reply);
+        }
+        else{
+          router(req, reply);
+        }  
+      })
+      
     }
   }
 

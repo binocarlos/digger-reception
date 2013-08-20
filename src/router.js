@@ -69,7 +69,17 @@ module.exports = function(routes, processor){
     }
 
     if(processor){
-      processor(req, reply, runroute);
+      /*
+      
+        we wrap the reply here so we can log security events
+        
+      */
+      processor(req, function(error, result){
+        if(error){
+          router.emit('security', req, error);
+        }
+        reply(error, result);
+      }, runroute);
     }
     else{
       runroute();
