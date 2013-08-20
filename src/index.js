@@ -79,7 +79,7 @@ module.exports = function(options){
     var data = '';
 
     if(type==='select'){
-      data = req.selector.string;
+      data = (req.selector || {}).string;
     }
     else{
       data = (req.body || []).length;
