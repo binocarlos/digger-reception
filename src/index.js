@@ -48,6 +48,10 @@ module.exports = function(options){
   */
   function http_response_writer(res){
     return function(error, result){
+
+      console.log('-------------------------------------------');
+      console.dir(error);
+      console.dir(result);
       if(error){
         var statusCode = 500;
         error = error.replace(/^(\d+):/, function(match, code){

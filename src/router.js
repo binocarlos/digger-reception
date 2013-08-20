@@ -31,16 +31,6 @@ module.exports = function(routes, processor){
 
   routes = routes || {};
 
-  if(!processor){
-    processor = {};
-  }
-
-  if(typeof(processor)==='function'){
-    processor = {
-      router:processor
-    }
-  }
-
   function match_route(url){
     if(url.charAt(0)==='/'){
       url = url.substr(1);
@@ -63,21 +53,7 @@ module.exports = function(routes, processor){
     }
   }
 
-  /*
-  
-    HERE WE PLUG IN THE STREAMS
-    
-  */
   function router(req, reply){
-
-    function secureroute(){
-      if(processor.security){
-        processor.security(req, reply, runroute);
-      }
-      else{
-        runroute();
-      }
-    }
 
     function runroute(){
       var route = match_route(req.url);
@@ -92,11 +68,11 @@ module.exports = function(routes, processor){
       route.fn(req, reply);
     }
 
-    if(processor.router){
-      processor.router(req, reply, secureroute);
+    if(processor){
+      processor(req, reply, runroute);
     }
     else{
-      secureroute();
+      runroute();
     }
     
   }
