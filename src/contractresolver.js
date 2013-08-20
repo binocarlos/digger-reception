@@ -46,6 +46,29 @@ util.inherits(Resolver, EventEmitter);
 
 module.exports = Resolver;
 
+
+
+/*
+
+  injects the important properties from the top level request
+
+  these are:
+
+    headers['x-json-user']
+
+    internal
+    website
+
+
+  
+*/
+function merge_request(req, raw){
+  raw.internal = req.internal;
+  raw.website = req.website;
+  raw.headers['x-json-user'] = req.headers['x-json-user'];
+  return raw;
+}
+
 /*
 
   tells us if the given req object is a contract that we can handle
@@ -86,6 +109,7 @@ Resolver.prototype.merge = function(req, reply){
 
   var branches = [];
   var allresults = [];
+
   
   //debug('merge contract');
   async.forEach(req.body || [], function(raw, nextmerge){
@@ -93,7 +117,7 @@ Resolver.prototype.merge = function(req, reply){
     // INJECT!
     // req.inject(contract_req);
 
-    self.handle(raw, function(error, results){
+    self.handle(merge_request(req, raw), function(error, results){
 
       if(error){
         nextmerge(error);
@@ -175,7 +199,7 @@ Resolver.prototype.pipe = function(req, reply){
 
     var pipe_results = [];
 
-    self.handle(raw, function(error, results){
+    self.handle(merge_request(req, raw), function(error, results){
 
       if(error){
         nextpipe(error);
