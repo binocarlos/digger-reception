@@ -41,28 +41,6 @@ module.exports = function(options){
     console.log(parts.join("\t"));
   }
 
-  /*
-  
-    get a function that will write the result to a http res
-    
-  */
-  function http_response_writer(res){
-    return function(error, result){
-
-      if(error){
-        var statusCode = 500;
-        error = error.replace(/^(\d+):/, function(match, code){
-          statusCode = code;
-          return '';
-        })
-        res.statusCode = statusCode;
-        res.send(error);
-      }
-      else{
-        res.json(result || []);
-      }
-    }
-  }
 
   function reception_logger(req){
     var parts = [
@@ -118,8 +96,125 @@ module.exports = function(options){
     return app;
   }
 
-  app.digger.use = function(fn){
+  /*
+  
+    get a function that will write the result to a http res
+    
+  */
+  function http_response_writer(res){
+    return function(error, result){
 
+      if(error){
+        var statusCode = 500;
+        error = error.replace(/^(\d+):/, function(match, code){
+          statusCode = code;
+          return '';
+        })
+        res.statusCode = statusCode;
+        res.send(error);
+      }
+      else{
+        res.json(result || []);
+      }
+    }
+  }
+
+  /*
+  
+    a connector that runs raw packets via the router for backend destinations
+    
+  */
+  app.connector = function(){
+    return function(req, reply){
+      process.nextTick(function(){
+        if(req.method.toLowerCase()==='post' && req.url==='/reception'){
+          reception_logger(req);
+          resolver.handle(req, reply);
+        }
+        else{
+          router(req, reply);
+        }  
+      })
+    }
+  }
+
+
+
+  /*
+  
+    converts a HTTP request into a raw request ready for passing back to the router
+    
+  */
+  app.http_connector = function(){
+
+    var connector = app.connector();
+
+    return function(req, res, next){
+
+      var headers = req.headers;
+      for(var prop in headers){
+        if(prop.indexOf('x-json-')==0){
+          headers[prop] = JSON.parse(headers[prop]);
+        }
+      }
+
+      var auth = req.session.auth || {};
+      var user = auth.user;
+
+      headers['x-json-user'] = user;
+
+      connector({
+        url:req.url,
+        method:req.method.toLowerCase(),
+        headers:headers,
+        body:req.body
+      }, http_response_writer(res));
+
+    }
+  }
+
+  /*
+  
+    this is used to connect the actual socket.io socket onto the router supplychain
+    
+  */
+  app.socket_connector = function(){
+
+    var connector = app.connector();
+
+    return function (socket) {
+
+      var session = socket.handshake.session || {};
+      var auth = session.auth || {};
+      var user = auth.user;
+
+      /*
+      
+        these are the browser socket methods travelling via our reception connector
+        
+      */
+      socket.on('request', function(req, reply){
+        var headers = req.headers || {};
+        headers['x-json-user'] = user;
+        /*
+        
+          it is important to map the request here to prevent properties being injected from outside
+          
+        */
+        connector({
+          method:req.method,
+          url:req.url,
+          headers:headers,
+          body:req.body
+        }, function(error, results){
+          reply({
+            error:error,
+            results:results
+          })
+        })
+      })
+      
+    }
   }
 
 
@@ -175,17 +270,7 @@ module.exports = function(options){
 
   /*
   
-  	Reception
-  	
-  */
-  app.post('/reception', function(req, res, next){
-    reception_logger(req);
-    resolver.handle(req, http_response_writer(res));
-  })
-
-  /*
-  
-    code injection
+    code injection for the client
     
   */
   app.get('/digger.js', Injector());
@@ -202,55 +287,13 @@ module.exports = function(options){
   
   /*
   
-    catch all routes
+    the main HTTP to digger bridge
     
   */
-  app.use(function(req, res, next){
+  app.use(app.http_connector());
 
-    var headers = req.headers;
-    for(var prop in headers){
-      if(prop.indexOf('x-json-')==0){
-        headers[prop] = JSON.parse(headers[prop]);
-      }
-    }
-
-    router({
-      url:req.url,
-      method:req.method.toLowerCase(),
-      headers:headers,
-      body:req.body
-    }, http_response_writer(res));
-
-  })
-
-  /*
-  
-    a connector that runs raw packets rather than spawn a HTTP loopback
     
-  */
-  app.connector = function(){
-    return function(req, reply){
-      process.nextTick(function(){
-        if(req.method.toLowerCase()==='post' && req.url==='/reception'){
-          reception_logger(req);
-          resolver.handle(req, reply);
-        }
-        else{
-          router(req, reply);
-        }  
-      })
-      
-    }
-  }
 
-  /*
-  
-    assing a
-    
-  */
-  app.router = function(fn){
-
-  }
 
   return app;
 }

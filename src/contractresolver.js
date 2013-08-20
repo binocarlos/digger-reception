@@ -117,7 +117,9 @@ Resolver.prototype.merge = function(req, reply){
     // INJECT!
     // req.inject(contract_req);
 
-    self.handle(merge_request(req, raw), function(error, results){
+    raw = merge_request(req, raw);
+    
+    self.handle(raw, function(error, results){
 
       if(error){
         nextmerge(error);
