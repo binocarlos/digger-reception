@@ -197,7 +197,9 @@ Resolver.prototype.pipe = function(req, reply){
 
   async.forEachSeries(req.body || [], function(raw, nextpipe){
 
-    raw.body = lastresults || raw.body;
+    if(lastresults){
+      raw.body = lastresults;
+    }
 
     var pipe_results = [];
 

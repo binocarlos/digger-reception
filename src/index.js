@@ -66,7 +66,7 @@ module.exports = function(options){
     var parts = [
       new Date().getTime(),
       'action:' + type,
-      req.url,
+      req.headers['x-supplier-route'] + req.url,
       data
     ]
     logger(parts);
@@ -103,7 +103,6 @@ module.exports = function(options){
   */
   function http_response_writer(res){
     return function(error, result){
-
       if(error){
         var statusCode = 500;
         error = error.replace(/^(\d+):/, function(match, code){
@@ -291,9 +290,6 @@ module.exports = function(options){
     
   */
   app.use(app.http_connector());
-
-    
-
 
   return app;
 }

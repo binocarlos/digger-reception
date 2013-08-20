@@ -37,6 +37,19 @@ module.exports = function(options){
 
     var client_path = __dirname + '/clients/' + driver + (options.minified ? '.min' : '') + '.js';
 
+    var auth = req.session.auth || {};
+    var user = null;
+
+    if(auth.loggedIn){
+      user = {};
+
+      for(var prop in auth.user){
+        if(prop.charAt(0)!=='_'){
+          user[prop] = auth.user[prop];
+        }
+      }
+    }
+
     fs.readFile(client_path, 'utf8', function(error, code){
       if(error){
         res.statusCode = 500;
@@ -52,7 +65,8 @@ module.exports = function(options){
         */
         var digger_config = {
           host:host,
-          baseurl:baseurl
+          baseurl:baseurl,
+          user:user
         }
 
         code += [
