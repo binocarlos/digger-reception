@@ -8377,17 +8377,31 @@ if (typeof define === "function" && define.amd) {
 */
 var blueprints = {};
 
+function add_single(name, print){
+	if($digger.config.debug){
+		console.log('-------------------------------------------');
+		console.log('blueprint: ' + name);
+		console.dir(print);
+	}
+
+	print.fields = print.find('field').models;
+	blueprints[name] = print;
+}
+
 module.exports = function(){
 	return {
-	  add:function(name, print){
-	  	if(arguments.length==1 && typeof(arguments[0])==='object'){
-	  		for(var i in prints){
-		      blueprints[i] = prints[i];
-		    }	
+	  add:function(blueprint){
+	  	if(!blueprint.fields){
+	  		if(typeof(blueprint.find)==='function'){
+	  			blueprint.fields = blueprint.find('field').models;		
+	  		}
+	  		else{
+	  			blueprint.fields = [];
+	  		}
 	  	}
-	  	else if(arguments.length==2){
-	  		blueprints[name] = print;
-	  	}
+	  	
+	  	blueprints[blueprint.title()] = blueprint;
+	  	
 	    return this;
 	  },
 	  get:function(name){
