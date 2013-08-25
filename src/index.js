@@ -22,7 +22,6 @@ var url = require('url');
 var utils = require('digger-utils');
 var ContractResolver = require('./contractresolver');
 var Router = require('./router');
-var Injector = require('./injector');
 
 module.exports = function(options){
   options = options || {};
@@ -32,7 +31,7 @@ module.exports = function(options){
   app.use(express.query());
 
   var resolver = new ContractResolver();
-  var router = Router(options.routes, options.router);
+  var router = Router();
 
   function logger(parts){
     if(options.log===false){
@@ -96,6 +95,8 @@ module.exports = function(options){
     return app;
   }
 
+  app.digger.router = router;
+
   /*
   
     get a function that will write the result to a http res
@@ -157,7 +158,7 @@ module.exports = function(options){
         }
       }
 
-      var auth = req.session.auth || {};
+      var auth = (req.session || {}).auth || {};
       var user = auth.user;
 
       headers['x-json-user'] = user;
@@ -174,51 +175,6 @@ module.exports = function(options){
 
   /*
   
-    this is used to connect the actual socket.io socket onto the router supplychain
-    
-  */
-  app.socket_connector = function(){
-
-    var connector = app.connector();
-
-    return function (socket) {
-
-      var session = socket.handshake.session || {};
-      var auth = session.auth || {};
-      var user = auth.user;
-
-      /*
-      
-        these are the browser socket methods travelling via our reception connector
-        
-      */
-      socket.on('request', function(req, reply){
-        var headers = req.headers || {};
-        headers['x-json-user'] = user;
-        /*
-        
-          it is important to map the request here to prevent properties being injected from outside
-          
-        */
-        connector({
-          method:req.method,
-          url:req.url,
-          headers:headers,
-          body:req.body
-        }, function(error, results){
-          reply({
-            error:error,
-            results:results
-          })
-        })
-      })
-      
-    }
-  }
-
-
-  /*
-  
     pipe requests into the router to handle
     
   */
@@ -231,16 +187,33 @@ module.exports = function(options){
     the router has denied access to a backend resource
     
   */
-  router.on('security', function(req, error){
+  router.on('error:security', function(req, error){
     var parts = [
       new Date().getTime(),
-      'security',
+      'error:security',
       req.method.toLowerCase(),
       req.url,
       error
     ]
     logger(parts);
   })
+
+  /*
+  
+    the router has denied access to a backend resource
+    
+  */
+  router.on('error:search', function(req, error){
+    var parts = [
+      new Date().getTime(),
+      'error:search',
+      req.method.toLowerCase(),
+      req.url,
+      error
+    ]
+    logger(parts);
+  })
+  
 
   /*
   
@@ -266,23 +239,6 @@ module.exports = function(options){
   app.get('/ping', function(req, res, next){
     res.send('pong');
   })
-
-  /*
-  
-    code injection for the client
-    
-  */
-  app.get('/digger.js', Injector());
-  app.get('/digger.min.js', Injector({
-    minified:true
-  }));
-  app.get('/:driver/digger.js', Injector({
-    pathdriver:true
-  }));
-  app.get('/:driver/digger.min.js', Injector({
-    pathdriver:true,
-    minified:true
-  }));
   
   /*
   

@@ -1,7 +1,7 @@
 digger-reception
 ================
 
-A REST based api server that 'mounts' functions as backend data suppliers.
+A REST based api server that mounts functions as backend data suppliers.
 
 ## installation
 

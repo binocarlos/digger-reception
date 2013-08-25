@@ -26,6 +26,7 @@
     "async": "~0.2.9",
     "digger-client": "~0.0.4",
     "socket.io-client": "~0.9.16",
-    "digger-sockets": "~0.0.1"
+    "digger-sockets": "~0.0.1",
+    "miniware": "~0.0.1"
   }
 }

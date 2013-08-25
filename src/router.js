@@ -17,7 +17,7 @@
  */
 
 var EventEmitter = require('events').EventEmitter;
-
+var Miniware = require('miniware');
 /*
 
   processor contains:
@@ -27,68 +27,90 @@ var EventEmitter = require('events').EventEmitter;
     * security - the function that maps the request after the suppliers are matched
   
 */
-module.exports = function(routes, processor){
+module.exports = function(){
 
-  routes = routes || {};
+  var routes = {};
 
-  function match_route(url){
-    if(url.charAt(0)==='/'){
-      url = url.substr(1);
+  var searchers = Miniware();
+
+  function search_route(url, done){
+
+    /*
+    
+      the default handler that matches statically registered routes
+      
+    */
+    var default_search = function(url, done){
+      if(url.charAt(0)==='/'){
+        url = url.substr(1);
+      }
+      var parts = url.split('/');
+      var usepath = [parts.shift()];
+      while(parts.length>0 && !routes['/' + usepath.join('/')]){
+        usepath.push(parts.shift());
+      }
+      var finalroute = '/' + usepath.join('/');
+      var fn = routes[finalroute];
+      if(!fn){
+        return done('no route found');
+      }
+      else{
+        done(null, {
+          route:finalroute,
+          fn:fn
+        })
+      }
     }
-    var parts = url.split('/');
-    var usepath = [parts.shift()];
-    while(parts.length>0 && !routes['/' + usepath.join('/')]){
-      usepath.push(parts.shift());
-    }
-    var finalroute = '/' + usepath.join('/');
-    var fn = routes[finalroute];
-    if(!fn){
-      return null;
-    }
-    else{
-      return {
-        route:finalroute,
-        fn:fn
-      }  
-    }
+
+
+    searchers(url, function(error, result){
+      if(error){
+        router.emit('error:search', url, error);
+      }
+      done(error, result);
+    }, default_search)
+    
   }
+
+  var middleware = Miniware();
 
   function router(req, reply){
 
     function runroute(){
-      var route = match_route(req.url);
-      if(!route){
-        reply(404 + ':no route found for: ' + req.url);
-        return;
-      }
-
-      req.headers['x-supplier-route'] = route.route;
-      router.emit('request', req);
-      req.url = req.url.substr(route.route.length);
-      route.fn(req, reply);
-    }
-
-    if(processor){
-      /*
-      
-        we wrap the reply here so we can log security events
-        
-      */
-      processor(req, function(error, result){
-        if(error){
-          router.emit('security', req, error);
+      search_route(req.url, function(error, route){
+        if(error || !route){
+          reply(404 + ':no route found for: ' + req.url);
+          return;
         }
-        reply(error, result);
-      }, runroute);
+
+        req.headers['x-supplier-route'] = route.route;
+        router.emit('request', req);
+        req.url = req.url.substr(route.route.length);
+        route.fn(req, reply);
+      })
     }
-    else{
-      runroute();
-    }
+
+    middleware(req, function(error, result){
+      if(error){
+        router.emit('error:security', req, error);
+      }
+      reply(error, result);
+    }, runroute);
     
   }
 
   router.add = function(route, fn){
     routes[route] = fn;
+  }
+
+  router.search = function(fn){
+    searchers.use(fn);
+    return router;
+  }
+
+  router.use = function(fn){
+    middleware.use(fn);
+    return router;
   }
 
   for(var prop in EventEmitter.prototype){
