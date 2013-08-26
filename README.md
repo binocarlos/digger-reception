@@ -1,7 +1,7 @@
 digger-reception
 ================
 
-A REST based api server that mounts functions as backend data suppliers.
+The core router component of a digger stack.
 
 ## installation
 
@@ -9,25 +9,39 @@ A REST based api server that mounts functions as backend data suppliers.
 
 ## usage
 
-You run a reception server as a stand-alone HTTP server or mounted onto another express application.
+The reception server is a [digger-warehouse](https://github.com/binocarlos/digger-warehouse) that sits in between web applications and data warehouses on a digger network.
+
+The reception is basically one big fat router.
+
+It emits 'request' events when it wants to contact a backend service.
 
 ```js
-var express = require('express');
 var Reception = require('digger-reception');
 
-// create a normal express application
-var app = express();
-
-// create a new reception server
 var reception = Reception();
 
-// add a new warehouse to the reception server
-reception.warehouse('/my/location', function(req, reply){
+/*
+
+	any requests will pass through this function BEFORE they are routed to a backend warehouse
+
+	this gives you a chance to do authentication and routing
+	
+*/
+reception.add_router(function(req, reply, next){
 
 })
 
-// mount the reception server onto the express app
-app.use('/api/v1/', reception);
+/*
 
-app.listen(80);
+	a packet is wanting to be sent back to a warehouse
+	
+*/
+reception.on('request', function(packet, reply){
+
+})
+
 ```
+
+## licence
+
+MIT

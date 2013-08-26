@@ -17,118 +17,28 @@
  */
 
 
-var express = require('express');
 var url = require('url');
 var utils = require('digger-utils');
 var ContractResolver = require('./contractresolver');
-var Router = require('./router');
+var logger = require('./logger');
+var Warehouse = require('digger-warehouse');
 
 module.exports = function(options){
   options = options || {};
-  var app = express();
-  
-  app.use(express.bodyParser());
-  app.use(express.query());
 
+  var app = Warehouse();
   var resolver = new ContractResolver();
-  var router = Router();
-
-  function logger(parts){
-    if(options.log===false){
-      return;
-    }
-    console.log(parts.join("\t"));
-  }
-
-
-  function reception_logger(req){
-    var parts = [
-      new Date().getTime(),
-      'contract',
-      req.headers['x-contract-type'],
-      (req.body || []).length
-    ]
-    logger(parts);
-  }
-  
-  function action_logger(type, req){
-
-    var data = '';
-
-    if(type==='select'){
-      data = (req.selector || {}).string;
-    }
-    else{
-      data = (req.body || []).length;
-    }
-
-    var parts = [
-      new Date().getTime(),
-      'action:' + type,
-      req.headers['x-supplier-route'] + req.url,
-      data
-    ]
-    logger(parts);
-  }
 
   /*
   
-    mount a backend warehouse handler
-    
-  */
-  app.digger = function(route, fn){
-    if(arguments.length<=1){
-      fn = route;
-      route = '/';
-    }
-
-    if(typeof(fn.on)==='function'){
-      fn.on('action', action_logger);
-    }
-
-    router.add(route, function(req, reply){
-      process.nextTick(function(){
-        fn(req, reply);
-      })
-    });
-    
-    return app;
-  }
-
-  app.digger.router = router;
-
-  /*
-  
-    get a function that will write the result to a http res
-    
-  */
-  function http_response_writer(res){
-    return function(error, result){
-      if(error){
-        var statusCode = 500;
-        error = error.replace(/^(\d+):/, function(match, code){
-          statusCode = code;
-          return '';
-        })
-        res.statusCode = statusCode;
-        res.send(error);
-      }
-      else{
-        res.json(result || []);
-      }
-    }
-  }
-
-  /*
-  
-    a connector that runs raw packets via the router for backend destinations
+    returns a function that can be used to pipe requests into the reception
     
   */
   app.connector = function(){
     return function(req, reply){
       process.nextTick(function(){
         if(req.method.toLowerCase()==='post' && req.url==='/reception'){
-          reception_logger(req);
+          logger.reception_logger(req);
           resolver.handle(req, reply);
         }
         else{
@@ -138,96 +48,13 @@ module.exports = function(options){
     }
   }
 
-
-
-  /*
-  
-    converts a HTTP request into a raw request ready for passing back to the router
-    
-  */
-  app.http_connector = function(){
-
-    var connector = app.connector();
-
-    return function(req, res, next){
-
-      var headers = req.headers;
-      for(var prop in headers){
-        if(prop.indexOf('x-json-')==0){
-          headers[prop] = JSON.parse(headers[prop]);
-        }
-      }
-
-      var auth = (req.session || {}).auth || {};
-      var user = auth.user;
-
-      headers['x-json-user'] = user;
-
-      connector({
-        url:req.url,
-        method:req.method.toLowerCase(),
-        headers:headers,
-        body:req.body
-      }, http_response_writer(res));
-
-    }
-  }
-
   /*
   
     pipe requests into the router to handle
     
   */
   resolver.on('request', function(req, reply){
-    router(req, reply);
-  })
-
-  /*
-  
-    the router has denied access to a backend resource
-    
-  */
-  router.on('error:security', function(req, error){
-    var parts = [
-      new Date().getTime(),
-      'error:security',
-      req.method.toLowerCase(),
-      req.url,
-      error
-    ]
-    logger(parts);
-  })
-
-  /*
-  
-    the router has denied access to a backend resource
-    
-  */
-  router.on('error:search', function(req, error){
-    var parts = [
-      new Date().getTime(),
-      'error:search',
-      req.method.toLowerCase(),
-      req.url,
-      error
-    ]
-    logger(parts);
-  })
-  
-
-  /*
-  
-    log requests going to backend warehouses via the router
-    
-  */
-  router.on('request', function(req){
-    var parts = [
-      new Date().getTime(),
-      'packet',
-      req.method.toLowerCase(),
-      req.url
-    ]
-    logger(parts);
+    app.emit('request', req, reply);
   })
 
 
@@ -236,8 +63,13 @@ module.exports = function(options){
     Ping
     
   */
-  app.get('/ping', function(req, res, next){
-    res.send('pong');
+  app.use(function(req, reply, next){
+    if(req.url=='/ping' && req.method=='get'){
+      reply(null, 'pong');
+    }
+    else{
+      next();
+    }
   })
   
   /*
@@ -245,7 +77,7 @@ module.exports = function(options){
     the main HTTP to digger bridge
     
   */
-  app.use(app.http_connector());
+  app.use(resolver);
 
   return app;
 }

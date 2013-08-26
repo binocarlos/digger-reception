@@ -11,15 +11,7 @@ test:
 		--require should \
 		--growl \
 		$(TESTS)
-
-browserify:
-	browserify -r digger-sockets > src/clients/sockets.js
-
-uglify: browserify
-	uglifyjs src/clients/sockets.js > src/clients/sockets.min.js
-
-build: uglify
-
+		
 install:
 	npm install
 
