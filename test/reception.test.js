@@ -1,5 +1,4 @@
 var Reception = require('../src');
-var request = require('request');
 
 describe('reception', function(){
 

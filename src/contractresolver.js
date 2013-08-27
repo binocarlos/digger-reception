@@ -227,7 +227,6 @@ Resolver.prototype.pipe = function(req, reply){
     })
 
   }, function(error){
-
     if(error){
       reply(error);
       return;

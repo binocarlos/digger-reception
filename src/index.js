@@ -20,7 +20,6 @@
 var url = require('url');
 var utils = require('digger-utils');
 var ContractResolver = require('./contractresolver');
-var logger = require('./logger');
 var Warehouse = require('digger-warehouse');
 
 module.exports = function(options){
@@ -28,6 +27,7 @@ module.exports = function(options){
 
   var app = Warehouse();
   var resolver = new ContractResolver();
+  var logger = Logger();
 
   /*
   
@@ -38,11 +38,11 @@ module.exports = function(options){
     return function(req, reply){
       process.nextTick(function(){
         if(req.method.toLowerCase()==='post' && req.url==='/reception'){
-          logger.reception_logger(req);
+          app.emit('digger:reception', req, reply);
           resolver.handle(req, reply);
         }
         else{
-          router(req, reply);
+          app.emit('digger:request', req, reply);
         }  
       })
     }
@@ -54,7 +54,7 @@ module.exports = function(options){
     
   */
   resolver.on('request', function(req, reply){
-    app.emit('request', req, reply);
+    app.emit('digger:request', req, reply);
   })
 
 
@@ -77,7 +77,9 @@ module.exports = function(options){
     the main HTTP to digger bridge
     
   */
-  app.use(resolver);
+  app.use(function(req, reply, next){
+    resolver.handle(req, reply, next);
+  })
 
   return app;
 }
