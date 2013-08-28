@@ -27,7 +27,6 @@ module.exports = function(options){
 
   var app = Warehouse();
   var resolver = new ContractResolver();
-  var logger = Logger();
 
   /*
   
@@ -74,10 +73,11 @@ module.exports = function(options){
   
   /*
   
-    the main HTTP to digger bridge
+    the main entry to digger bridge
     
   */
   app.use(function(req, reply, next){
+    app.emit('digger:reception', req, reply);
     resolver.handle(req, reply, next);
   })
 

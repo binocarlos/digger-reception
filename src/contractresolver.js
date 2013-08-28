@@ -66,6 +66,7 @@ function merge_request(req, raw){
   raw.internal = req.internal;
   raw.website = req.website;
   raw.headers['x-json-user'] = req.headers['x-json-user'];
+  raw.headers['x-request-id'] = utils.littleid();
   return raw;
 }
 
@@ -202,8 +203,9 @@ Resolver.prototype.pipe = function(req, reply){
     }
 
     var pipe_results = [];
-
-    self.handle(merge_request(req, raw), function(error, results){
+    var send_request = merge_request(req, raw);
+    
+    self.handle(send_request, function(error, results){
 
       if(error){
         nextpipe(error);
