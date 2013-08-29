@@ -76,10 +76,7 @@ module.exports = function(options){
     the main entry to digger bridge
     
   */
-  app.use(function(req, reply, next){
-    app.emit('digger:reception', req, reply);
-    resolver.handle(req, reply, next);
-  })
+  app.use(app.connector());
 
   return app;
 }
