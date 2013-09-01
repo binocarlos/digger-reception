@@ -37,7 +37,7 @@ module.exports = function(options){
     return function(req, reply){
       process.nextTick(function(){
         if(req.method.toLowerCase()==='post' && req.url==='/reception'){
-          app.emit('digger:reception', req, reply);
+          app.emit('digger:contract', req, reply);
           resolver.handle(req, reply);
         }
         else{

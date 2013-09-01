@@ -196,39 +196,44 @@ Resolver.prototype.pipe = function(req, reply){
   var self = this;
   var lastresults = null;
 
-  async.forEachSeries(req.body || [], function(raw, nextpipe){
+  var fns = (req.body || []).map(function(raw){
 
-    if(lastresults){
-      raw.body = lastresults;
-    }
+    return function(nextpipe){
 
-    var pipe_results = [];
-    var send_request = merge_request(req, raw);
-    
-    self.handle(send_request, function(error, results){
-
-      if(error){
-        nextpipe(error);
-        return;
+      if(lastresults){
+        raw.body = lastresults;
       }
-      else{
-        if(!results){
-          results = [];
-        }
-        else if(!utils.isArray(results)){
-          results = [results];
-        }
-        if(results.length<=0){
-          reply(null, []);
+
+      var pipe_results = [];
+      var send_request = merge_request(req, raw);
+      
+      self.handle(send_request, function(error, results){
+
+        if(error){
+          nextpipe(error);
           return;
         }
-        lastresults = results;
-        nextpipe();
-      }
+        else{
+          if(!results){
+            results = [];
+          }
+          else if(!utils.isArray(results)){
+            results = [results];
+          }
+          if(results.length<=0){
+            reply(null, []);
+            return;
+          }
+          lastresults = results;
+          nextpipe();
+        }
 
-    })
+      })
+    }
 
-  }, function(error){
+  })
+
+  async.series(fns, function(error){
     if(error){
       reply(error);
       return;
