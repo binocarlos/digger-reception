@@ -35,6 +35,7 @@ module.exports = function(options){
   */
   app.connector = function(){
     return function(req, reply){
+
       process.nextTick(function(){
         if(req.method.toLowerCase()==='post' && req.url==='/reception'){
           app.emit('digger:contract', req, reply);
@@ -52,7 +53,7 @@ module.exports = function(options){
     pipe requests into the router to handle
     
   */
-  resolver.on('request', function(req, reply){
+  resolver.on('digger:request', function(req, reply){
     app.emit('digger:request', req, reply);
   })
 

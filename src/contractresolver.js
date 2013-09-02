@@ -76,7 +76,7 @@ function merge_request(req, raw){
   
 */
 Resolver.prototype.validate_contract = function(req){
-  return !(typeof(this[req.headers['x-contract-type']]) !== 'function');
+  return (typeof(this[req.headers['x-contract-type']]) === 'function');
 }
 /*
 
@@ -91,7 +91,7 @@ Resolver.prototype.handle = function(req, reply){
     
   */
   if(!this.validate_contract(req)){
-    this.emit('request', req, reply);
+    this.emit('digger:request', req, reply);
   }
   else{
     this[req.headers['x-contract-type']].apply(this, [req, reply]);
