@@ -1,6 +1,6 @@
 {
   "name": "digger-reception",
-  "version": "0.0.22",
+  "version": "0.0.23",
   "description": "The main query router for a digger.io network",
   "main": "src/index.js",
   "scripts": {
