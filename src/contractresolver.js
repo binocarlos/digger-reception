@@ -38,6 +38,37 @@ var utils = require('digger-utils');
 
  */
 
+function extract_symlinks(answer){
+
+  if(typeof(answer)==='object' && answer.headers && answer.headers.symlinks){
+    return answer.headers.symlinks;
+  }
+
+  return null;
+}
+
+function extract_results(results){
+  if(!results){
+    results = [];
+  }
+  else if(!utils.isArray(results)){
+
+    if(typeof(results)==='object'){
+      if(results.headers){
+        results = results.body;
+      }
+      else{
+        results = [results];  
+      }
+    }
+    else{
+      results = [results];  
+    }
+  }
+
+  return results;
+}
+
 function Resolver(){
 
 }
@@ -75,23 +106,77 @@ function merge_request(req, raw){
   tells us if the given req object is a contract that we can handle
   
 */
-Resolver.prototype.validate_contract = function(req){
-  return (typeof(this[req.headers['x-contract-type']]) === 'function');
+function validate_contract(req){
+  return req.method.toLowerCase()==='post' && req.url==='/reception';
+  //return (typeof(this[req.headers['x-contract-type']]) === 'function');
 }
+
 /*
 
   the front door for HTTP requests
   
 */
 Resolver.prototype.handle = function(req, reply){
-  
+  var self = this;
   /*
   
     make sure we actually have a contract
     
   */
-  if(!this.validate_contract(req)){
-    this.emit('digger:request', req, reply);
+  if(!validate_contract(req)){
+
+    function processresply(error, results){
+
+      var symlinks = extract_symlinks(results);
+      results = extract_results(results);
+
+      // we have links to resolve before the answer is complete
+      if(symlinks){
+
+        var bodyarr = [];
+
+        for(var url in symlinks){
+          bodyarr.push({
+            headers:{},
+            method:'get',
+            url:url
+          })
+        }
+
+        var contract = merge_request(req, {
+          method:'post',
+          url:'/reception',
+          headers:{
+            'x-contract-type':'merge'
+          },
+          body:bodyarr
+        })
+
+        process.nextTick(function(){
+
+          self.handle(contract, function(error, linked){
+
+
+            (linked || []).forEach(function(l){
+              var digger = l._digger || {};
+              digger._symlinked = true;
+              l._digger = digger;
+            })
+
+            reply(error, (results || []).concat(linked));
+          })          
+        })
+        
+        
+        
+      }
+      else{
+        reply(error, results);
+      }
+     
+    }
+
+    this.emit('digger:request', req, processresply);
   }
   else{
     this[req.headers['x-contract-type']].apply(this, [req, reply]);
@@ -122,37 +207,17 @@ Resolver.prototype.merge = function(req, reply){
 
     raw = merge_request(req, raw);
     
-    self.handle(raw, function(error, results){
+    self.handle(raw, function(error, results, links){
 
       if(error){
         nextmerge(error);
         return;
       }
       else{
-        if(!results){
-          results = [];
-        }
-        else if(!utils.isArray(results)){
-          results = [results];
-        }
-        //results.push(merge_res);
-        // BRACHING
-        // branches = branches.concat(contract_res.getHeader('x-json-branches') || []);
         allresults = allresults.concat(results || []);
         nextmerge();
       }
     })
-
-    /*
-    var contract_req = Request(raw);
-    var contract_res = Response(function(){
-      res.add(contract_res);
-      branches = branches.concat(contract_res.getHeader('x-json-branches') || []);
-      next();
-    })*/
-
-    //debug('merge contract - part: %s %s', contract_req.method, contract_req.url);
-    //supplychain(contract_req, contract_res);
 
   }, function(error){
 
@@ -168,29 +233,16 @@ Resolver.prototype.merge = function(req, reply){
       reply(null, allresults);
       self.emit('digger:contract:results', req, (allresults || []).length);
     }
-/*
-    if(branches.length>0){
-
-      var branch_req = Contract('merge');
-      branch_req.method = 'post';
-      branch_req.url = '/reception';
-      branch_req.body = branches;
-
-      var branch_res = Response(function(){
-        res.add(branch_res);
-        res.send();
-      })
-
-      resolver(branch_req, branch_res);
-    }
-    else{
-      res.send();  
-    }
-    */
-
   })
 }
 
+function clone(obj){
+  var ret = {};
+  for(var prop in obj){
+    ret[prop] = obj[prop];
+  }
+  return ret;
+}
 /*
 
   run each query in sequence and pass the previous results onto the next stage as the body
@@ -205,7 +257,12 @@ Resolver.prototype.pipe = function(req, reply){
 
   var start = new Date().getTime();
 
-  var fns = (req.body || []).map(function(raw){
+  function get_symlink_contract(index){
+    return ([]).concat(req.body).slice(index);
+  }
+
+  // this is the contract pipe
+  var fns = (req.body || []).map(function(raw, index){
 
     return function(nextpipe){
 
@@ -213,31 +270,82 @@ Resolver.prototype.pipe = function(req, reply){
         raw.body = lastresults;
       }
 
-      var pipe_results = [];
+      // merge the top request into the next pipe step
       var send_request = merge_request(req, raw);
-      
-      self.handle(send_request, function(error, results){
 
-        if(error){
-          nextpipe(error);
-          return;
+      // turn the single pipe step into list of requests across multiple warehouses
+      // (symlinks can cause this to happen)
+      var requests = [send_request];
+      var basebody = [];
+      var warehouses = {};
+      (raw.body || []).forEach(function(item){
+        var digger = item._digger || {};
+        if(digger._symlinked){
+          var warehouse = digger.diggerwarehouse;
+          var arr = warehouses[warehouse] || [];
+          arr.push(item);
+          warehouses[warehouse] = arr;
         }
         else{
-          if(!results){
-            results = [];
-          }
-          else if(!utils.isArray(results)){
-            results = [results];
-          }
-          if(results.length<=0){
-            reply(null, []);
-            return;
-          }
-          lastresults = results;
+          basebody.push(item);
+        }
+        
+      })
+      send_request.body = basebody;
+
+      function process_symlink_warehouse(url, warehouse){
+        var body = warehouses[url];
+        // it must have a body to have symlinked
+        if(!body || body.length<=0){
+          return;
+        }
+        
+        var warehouse_req = clone(raw);
+        warehouse_req.url = url;
+        warehouse_req.body = body;
+        requests.push(warehouse_req);
+      }
+
+      for(var i in warehouses){
+        process_symlink_warehouse(i, warehouses[i]);
+      }
+
+      // collect up the results from each of the warehouse steps
+      var pipe_results = [];
+
+      var fns = requests.map(function(warehouse_req){
+        return function(next_warehouse_req){
+          // HANDLE
+          self.handle(warehouse_req, function(error, results){
+
+            if(error){
+              next_warehouse_req(error);
+              return;
+            }
+            else{
+
+              if(results.length>0){
+                pipe_results = pipe_results.concat(results);
+              }
+              
+              next_warehouse_req();
+            }
+
+          })
+        }
+      })
+
+      async.parallel(fns, function(error){
+        if(error){
+          nextpipe(error);
+        }
+        else{
+          lastresults = pipe_results;
           nextpipe();
         }
-
       })
+
+      
     }
 
   })

@@ -35,15 +35,8 @@ module.exports = function(options){
   */
   app.connector = function(){
     return function(req, reply){
-
       process.nextTick(function(){
-        if(req.method.toLowerCase()==='post' && req.url==='/reception'){
-          app.emit('digger:contract', req, reply);
-          resolver.handle(req, reply);
-        }
-        else{
-          app.emit('digger:request', req, reply);
-        }  
+        resolver.handle(req, reply);
       })
     }
   }
