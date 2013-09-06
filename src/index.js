@@ -58,6 +58,15 @@ module.exports = function(options){
   })
 
 
+  resolver.on('digger:contract:results', function(req, results){
+    app.emit('digger:contract:results', req, results);
+  })
+
+  resolver.on('digger:contract:error', function(req, error){
+    app.emit('digger:contract:error', req, error);
+  })
+
+
   /*
   
     Ping
