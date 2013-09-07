@@ -36,7 +36,13 @@ module.exports = function(options){
   app.connector = function(){
     return function(req, reply){
       process.nextTick(function(){
-        resolver.handle(req, reply);
+        resolver.handle(req, function(error, results){
+          if(error){
+            app.emit('digger:contract:error', req, error);
+          }
+
+          reply(error, results);
+        });
       })
     }
   }
@@ -55,10 +61,9 @@ module.exports = function(options){
     app.emit('digger:contract:results', req, results);
   })
 
-  resolver.on('digger:contract:error', function(req, error){
-    app.emit('digger:contract:error', req, error);
+  resolver.on('digger:symlink', function(link){
+    app.emit('digger:symlink', link);
   })
-
 
   /*
   
