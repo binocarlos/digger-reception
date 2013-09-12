@@ -76,6 +76,11 @@ module.exports.merge_request = function(req, raw){
   
 */
 module.exports.validate_contract = function(req){
+
+  if(!req || !req.method || !req.url){
+    return false;
+  }
+  
   return req.method.toLowerCase()==='post' && req.url==='/reception';
   //return (typeof(this[req.headers['x-contract-type']]) === 'function');
 }
