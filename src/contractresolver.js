@@ -49,7 +49,7 @@ module.exports = Resolver;
 */
 Resolver.prototype.handle = function(req, reply){
   var self = this;
-  
+
   // if it is a normal request - route it and process the results for symlinks
   if(!Tools.validate_contract(req)){
     this.emit('digger:request', req, self.link_resolver(req, reply));
