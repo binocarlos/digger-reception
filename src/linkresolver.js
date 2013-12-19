@@ -30,6 +30,9 @@ var tools = require('./tools');
 */
 module.exports = function(req, reply){
   var self = this;
+  if(!req.headers){
+    req.headers = {};
+  }
   // the selector that got us to the symlink
   var selector = req.headers['x-json-selector'] || {};
   var modifiers = selector.modifier || {};
